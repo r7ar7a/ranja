@@ -1,8 +1,10 @@
+import os
 import pytest
 
 from ranja.core import update_dict_tree
 from ranja.core import RanjaException
 from ranja.core import KeyPolicy
+from ranja.core import Configuration
 
 EXISTENT = KeyPolicy.EXISTENT
 NEW = KeyPolicy.NEW
@@ -43,3 +45,70 @@ def test_update_dict_tree_complex():
   res = {1: {2: 21, 3: 12}, 4: 13, 5: {6: 22}}
   assert a is update_dict_tree(a, b)
   assert res == update_dict_tree(a, b)
+
+def test_Configuration_simple():
+  cfg_string = '{a: 2, b: 3}'
+  cfg = Configuration().add(cfg_string).resolve()
+  assert cfg == {'a': 2, 'b': 3}
+
+  cfg_string2 = '{a: [1, "2", 3], b: 3}'
+  cfg2 = Configuration().add(cfg_string2).resolve()
+  assert cfg2 == {'a': [1, '2', 3], 'b': 3}
+
+def test_Configuration_policy_errors():
+  with pytest.raises(RanjaException):
+    Configuration().add('{a: 1}').add('{a: 1}', key_policy=NEW).resolve()
+
+  with pytest.raises(RanjaException):
+    Configuration().add('{a: 1}').add('{a: {b: 1}}').resolve()
+
+  with pytest.raises(RanjaException):
+    Configuration().add('{a: 1}').add('{b: 1}', key_policy=EXISTENT).resolve()
+
+def test_Configuration_complex():
+  cfg_defaults = (
+      'a:\n'
+      '  - 1\n'
+      'b:\n'
+      '  ba: 1\n'
+      '  bb: {bba: \'{{a | jsonify}}\'}\n'
+      'c: \'{{b.ba}}\'\n'
+      )
+
+  expected_cfg1 = {'a': [1], 'b': {'ba': 1, 'bb': {'bba': '[1]'}}, 'c': '1'}
+  result_cfg1 =  Configuration().add(cfg_defaults).resolve()
+  assert expected_cfg1 == result_cfg1
+
+  cfg_spec = '{b: {ba: 32}}'
+  expected_cfg2 = {'a': [1], 'b': {'ba': 32, 'bb': {'bba': '[1]'}}, 'c': '32'}
+  result_cfg2 =  (Configuration()
+    .add(cfg_defaults)
+    .add(cfg_spec, key_policy=EXISTENT)
+    .resolve())
+  assert expected_cfg2 == result_cfg2
+
+def test_Configuration_escaping():
+  cfg_apostrophe = (
+      'a: don\'t do it\n'
+      'b: \'{{a | esc_a}}\'\n'
+      )
+  assert ({'a': "don't do it", 'b': "don't do it"} ==
+      Configuration().add(cfg_apostrophe).resolve())
+
+  cfg_multiline = (
+      'a: |-\n'
+      '  x\n'
+      '  y\n'
+      'b: |-\n'
+      '  {{a | indent(2)}}\n'
+      )
+  assert ({'a': 'x\ny', 'b': 'x\ny'} ==
+      Configuration().add(cfg_multiline).resolve())
+
+def test_os_environ():
+  cfg_string = '{a: 2, b: 3}'
+  os.environ['RANJA_b'] = '4'
+  cfg = Configuration().add(cfg_string).resolve('RANJA_')
+  assert cfg == {'a': 2, 'b': '4'}
+
+
