@@ -18,11 +18,11 @@ def read_os_env_tree(prefix):
   result = {}
   for k, v in dict_from_environ.items():
     place = result
-    for key_path_part in k.split('.')[:-1]:
+    for key_path_part in k.split('__')[:-1]:
       if key_path_part not in place:
         place[key_path_part] = {}
       place = place[key_path_part]
-    place[k.split('.')[-1]] = v
+    place[k.split('__')[-1]] = v
   return result
 
 
@@ -66,8 +66,7 @@ class Configuration(object):
 
   def resolve(self, os_env_prefix=None):
     if self._resolved:
-      raise RanjaException(
-          "Already resolved.".format(key))
+      raise RanjaException("Already resolved.")
     self._resolved = True
 
     if os_env_prefix is not None:

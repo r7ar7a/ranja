@@ -106,9 +106,10 @@ def test_Configuration_escaping():
       Configuration().add(cfg_multiline).resolve())
 
 def test_os_environ():
-  cfg_string = '{a: 2, b: 3}'
+  cfg_string = '{a: 2, b: 3, c: {x: 1, y: 2}}'
   os.environ['RANJA_b'] = '4'
+  os.environ['RANJA_c__x'] = 'alma'
   cfg = Configuration().add(cfg_string).resolve('RANJA_')
-  assert cfg == {'a': 2, 'b': '4'}
+  assert cfg == {'a': 2, 'b': '4', 'c': {'x': 'alma', 'y': 2}}
 
 
