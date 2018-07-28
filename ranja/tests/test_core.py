@@ -122,6 +122,16 @@ def test_Configuration_os_env():
                 .add('x: \'{{"NOT_ENV_VARIABLE" | os_env_strict}}\'')
                 .resolve())
 
+def test_stop_condition():
+    cfg_no_variable = (
+        'x: \n'
+        '# {%- for i in range(10) %}\n'
+        '  - a \n'
+        '# {%- endfor %}\n')
+    assert Configuration().add(cfg_no_variable).resolve() == {
+        'x': ['a' for _ in range(10)]
+    }
+
 def test_os_environ():
     cfg_string = '{a: 2, b: 3, c: {x: 1, y: 2}}'
     os.environ['RANJA_b'] = '4'

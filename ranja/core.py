@@ -68,7 +68,8 @@ class Configuration():
 
     def _check_templates(self):
         return any(
-            conf_part['yaml_string'].find('{{') >= 0
+            (self._jinja_env.block_start_string in conf_part['yaml_string']) or
+            (self._jinja_env.variable_start_string in conf_part['yaml_string'])
             for conf_part in self._conf_parts)
 
 
