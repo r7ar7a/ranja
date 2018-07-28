@@ -14,36 +14,39 @@ KeyPolicy = Enum('KeyPolicy', [
 
 
 class Configuration():
-    def __init__(self, default_vars=None):
+    def __init__(self):
         self._jinja_env = Environment(undefined=StrictUndefined)
         self._jinja_env.filters['jsonify'] = json.dumps
         self._jinja_env.filters['esc_a'] = lambda s: s.replace("'", "''")
         self._jinja_env.filters['os_env'] = os.environ.get
         self._jinja_env.filters['os_env_strict'] = os.environ.__getitem__
 
-        if default_vars is not None:
-            self._jinja_env.globals.update(default_vars)
-
         self._conf_parts = []
         self._dict = {}
-        self._os_dict = {}
         self._resolved = False
 
     def get_jinja_env(self):
         return self._jinja_env
 
-    def add(self, yaml_string, key_policy=KeyPolicy.ANY):
-        self._conf_parts.append(
-            {'yaml_string': yaml_string, 'key_policy': key_policy})
+    def add_yaml(self, yaml_string, key_policy=KeyPolicy.ANY):
+        self._conf_parts.append({'yaml_string': yaml_string, 'key_policy': key_policy})
         return self
+
+    def add_path(self, yaml_path, key_policy=KeyPolicy.ANY):
+        with open(yaml_path) as yaml_file:
+            return self.add_yaml(yaml_file.read(), key_policy=key_policy)
+
+    def add_dict_tree(self, dict_tree, key_policy=KeyPolicy.ANY):
+        self._conf_parts.append({'dict_tree': dict_tree, 'key_policy': key_policy})
+        return self
+
+    def add_env_var_prefix(self, env_var_prefix, key_policy=KeyPolicy.ANY):
+        return self.add_dict_tree(read_os_env_tree(env_var_prefix), key_policy=key_policy)
 
     def resolve(self, os_env_prefix=None):
         if self._resolved:
             raise RanjaException("Already resolved.")
         self._resolved = True
-
-        if os_env_prefix is not None:
-            self._os_dict = read_os_env_tree(os_env_prefix)
 
         self._update_tree()
         while self._check_templates():
@@ -54,23 +57,26 @@ class Configuration():
     def _update_tree(self):
         self._dict = {}
         for conf_part in self._conf_parts:
-            for dict_tree in yaml.safe_load_all(conf_part['yaml_string']):
-                update_dict_tree(self._dict,
-                                 dict_tree,
-                                 key_policy=conf_part['key_policy'])
-        update_dict_tree(self._dict, self._os_dict, key_policy=KeyPolicy.EXISTENT)
+            if 'dict_tree' in conf_part:
+                dict_trees = [conf_part['dict_tree']]
+            if 'yaml_string' in conf_part:
+                dict_trees = yaml.safe_load_all(conf_part['yaml_string'])
+            for dict_tree in dict_trees:
+                update_dict_tree(self._dict, dict_tree, key_policy=conf_part['key_policy'])
 
 
     def _update_yamls(self):
         for conf_part in self._conf_parts:
-            template = self._jinja_env.from_string(conf_part['yaml_string'])
-            conf_part['yaml_string'] = template.render(self._dict)
+            if 'yaml_string' in conf_part:
+                template = self._jinja_env.from_string(conf_part['yaml_string'])
+                conf_part['yaml_string'] = template.render(self._dict)
 
     def _check_templates(self):
         return any(
             (self._jinja_env.block_start_string in conf_part['yaml_string']) or
             (self._jinja_env.variable_start_string in conf_part['yaml_string'])
-            for conf_part in self._conf_parts)
+            for conf_part in self._conf_parts
+            if 'yaml_string' in conf_part)
 
 
 class RanjaException(Exception):

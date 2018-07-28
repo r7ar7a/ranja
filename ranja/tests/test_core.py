@@ -50,22 +50,22 @@ def test_update_dict_tree_complex():
 
 def test_Configuration_simple():
     cfg_string = '{a: 2, b: 3}'
-    cfg = Configuration().add(cfg_string).resolve()
+    cfg = Configuration().add_yaml(cfg_string).resolve()
     assert cfg == {'a': 2, 'b': 3}
 
     cfg_string2 = '{a: [1, "2", 3], b: 3}'
-    cfg2 = Configuration().add(cfg_string2).resolve()
+    cfg2 = Configuration().add_yaml(cfg_string2).resolve()
     assert cfg2 == {'a': [1, '2', 3], 'b': 3}
 
 def test_Configuration_policy_errors():
     with pytest.raises(RanjaException):
-        Configuration().add('{a: 1}').add('{a: 1}', key_policy=NEW).resolve()
+        Configuration().add_yaml('{a: 1}').add_yaml('{a: 1}', key_policy=NEW).resolve()
 
     with pytest.raises(RanjaException):
-        Configuration().add('{a: 1}').add('{a: {b: 1}}').resolve()
+        Configuration().add_yaml('{a: 1}').add_yaml('{a: {b: 1}}').resolve()
 
     with pytest.raises(RanjaException):
-        Configuration().add('{a: 1}').add('{b: 1}', key_policy=EXISTENT).resolve()
+        Configuration().add_yaml('{a: 1}').add_yaml('{b: 1}', key_policy=EXISTENT).resolve()
 
 def test_Configuration_complex():
     cfg_defaults = (
@@ -78,15 +78,15 @@ def test_Configuration_complex():
     )
 
     expected_cfg1 = {'a': [1], 'b': {'ba': 1, 'bb': {'bba': '[1]'}}, 'c': '1'}
-    result_cfg1 = Configuration().add(cfg_defaults).resolve()
+    result_cfg1 = Configuration().add_yaml(cfg_defaults).resolve()
     assert expected_cfg1 == result_cfg1
 
     cfg_spec = '{b: {ba: 32}}'
     expected_cfg2 = {'a': [1], 'b': {'ba': 32, 'bb': {'bba': '[1]'}}, 'c': '32'}
     result_cfg2 = (
         Configuration()
-        .add(cfg_defaults)
-        .add(cfg_spec, key_policy=EXISTENT)
+        .add_yaml(cfg_defaults)
+        .add_yaml(cfg_spec, key_policy=EXISTENT)
         .resolve())
     assert expected_cfg2 == result_cfg2
 
@@ -95,7 +95,7 @@ def test_Configuration_escaping():
         'a: don\'t do it\n'
         'b: \'{{a | esc_a}}\'\n')
     assert ({'a': "don't do it", 'b': "don't do it"} ==
-            Configuration().add(cfg_apostrophe).resolve())
+            Configuration().add_yaml(cfg_apostrophe).resolve())
 
     cfg_multiline = (
         'a: |-\n'
@@ -104,22 +104,22 @@ def test_Configuration_escaping():
         'b: |-\n'
         '  {{a | indent(2)}}\n')
     assert ({'a': 'x\ny', 'b': 'x\ny'} ==
-            Configuration().add(cfg_multiline).resolve())
+            Configuration().add_yaml(cfg_multiline).resolve())
 
 def test_Configuration_os_env():
     os.environ['SOME_ENV_VARIABLE'] = 'value'
     assert (Configuration()
-            .add('x: \'{{"SOME_ENV_VARIABLE" | os_env}}\'')
+            .add_yaml('x: \'{{"SOME_ENV_VARIABLE" | os_env}}\'')
             .resolve() == {'x': 'value'})
     assert (Configuration()
-            .add('x: \'{{"SOME_ENV_VARIABLE" | os_env_strict}}\'')
+            .add_yaml('x: \'{{"SOME_ENV_VARIABLE" | os_env_strict}}\'')
             .resolve() == {'x': 'value'})
     assert (Configuration()
-            .add('x: \'{{"NOT_ENV_VARIABLE" | os_env}}\'')
+            .add_yaml('x: \'{{"NOT_ENV_VARIABLE" | os_env}}\'')
             .resolve() == {'x': 'None'})
     with pytest.raises(KeyError):
         assert (Configuration()
-                .add('x: \'{{"NOT_ENV_VARIABLE" | os_env_strict}}\'')
+                .add_yaml('x: \'{{"NOT_ENV_VARIABLE" | os_env_strict}}\'')
                 .resolve())
 
 def test_stop_condition():
@@ -128,7 +128,7 @@ def test_stop_condition():
         '# {%- for i in range(10) %}\n'
         '  - a \n'
         '# {%- endfor %}\n')
-    assert Configuration().add(cfg_no_variable).resolve() == {
+    assert Configuration().add_yaml(cfg_no_variable).resolve() == {
         'x': ['a' for _ in range(10)]
     }
 
@@ -136,5 +136,5 @@ def test_os_environ():
     cfg_string = '{a: 2, b: 3, c: {x: 1, y: 2}}'
     os.environ['RANJA_b'] = '4'
     os.environ['RANJA_c__x'] = 'alma'
-    cfg = Configuration().add(cfg_string).resolve('RANJA_')
+    cfg = Configuration().add_yaml(cfg_string).add_env_var_prefix('RANJA_').resolve()
     assert cfg == {'a': 2, 'b': '4', 'c': {'x': 'alma', 'y': 2}}
