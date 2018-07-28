@@ -1,10 +1,13 @@
 import os
+from io import StringIO
+
 import pytest
 
 from ranja.core import update_dict_tree
 from ranja.core import RanjaException
 from ranja.core import KeyPolicy
 from ranja.core import Configuration
+
 
 EXISTENT = KeyPolicy.EXISTENT
 NEW = KeyPolicy.NEW
@@ -104,6 +107,22 @@ def test_Configuration_escaping():
       )
   assert ({'a': 'x\ny', 'b': 'x\ny'} ==
       Configuration().add(cfg_multiline).resolve())
+
+def test_Configuration_os_env():
+  os.environ['SOME_ENV_VARIABLE'] = 'value'
+  assert (Configuration()
+      .add('x: \'{{"SOME_ENV_VARIABLE" | os_env}}\'')
+      .resolve() == {'x': 'value'})
+  assert (Configuration()
+      .add('x: \'{{"SOME_ENV_VARIABLE" | os_env_strict}}\'')
+      .resolve() == {'x': 'value'})
+  assert (Configuration()
+      .add('x: \'{{"NOT_ENV_VARIABLE" | os_env}}\'')
+      .resolve() == {'x': 'None'})
+  with pytest.raises(KeyError):
+    assert (Configuration()
+        .add('x: \'{{"NOT_ENV_VARIABLE" | os_env_strict}}\'')
+        .resolve())
 
 def test_os_environ():
   cfg_string = '{a: 2, b: 3, c: {x: 1, y: 2}}'
