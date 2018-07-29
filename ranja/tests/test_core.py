@@ -3,9 +3,9 @@ import os
 import pytest
 
 from ranja.core import update_dict_tree
-from ranja.core import RanjaException
-from ranja.core import KeyPolicy
-from ranja.core import Configuration
+from ranja import RanjaException
+from ranja import KeyPolicy
+from ranja import Configuration
 
 
 EXISTENT = KeyPolicy.EXISTENT

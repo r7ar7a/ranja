@@ -40,7 +40,7 @@ class Configuration():
         self._conf_parts.append({'dict_tree': dict_tree, 'key_policy': key_policy})
         return self
 
-    def add_env_var_prefix(self, env_var_prefix, key_policy=KeyPolicy.ANY):
+    def add_env_var_prefix(self, env_var_prefix, key_policy=KeyPolicy.EXISTENT):
         return self.add_dict_tree(read_os_env_tree(env_var_prefix), key_policy=key_policy)
 
     def resolve(self, os_env_prefix=None):
